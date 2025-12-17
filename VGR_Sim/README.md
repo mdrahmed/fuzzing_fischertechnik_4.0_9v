@@ -12,3 +12,9 @@ store white
 fetch white
 quit
 ```
+
+#### Fuzz VGR simulation
+```
+g++ -std=c++11 -pthread fuzz_vgr.cpp TxtVacuumGripperRobot.cpp TxtVacuumGripperRobotRun.cpp TxtVacuumGripperRobotCalibData.cpp TxtVacuumGripper.cpp TxtNfcDevice.cpp -o fuzz_vgr
+./fuzz_vgr
+```
