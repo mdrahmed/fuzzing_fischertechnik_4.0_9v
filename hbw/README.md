@@ -3,6 +3,7 @@
 g++ -std=c++11 main.cpp TxtHighBayWarehouse.cpp TxtHighBayWarehouseStorage.cpp -o hbw_sim
 ./hbw_sim
 ```
+An array is used for storage.
 
 #### Fuzz the HBW programs
 ```
