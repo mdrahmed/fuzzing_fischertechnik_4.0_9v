@@ -1,11 +1,11 @@
 #### Create SLD simulation
 File Structure:
-SimulationMocks.h: Mocks for hardware, threading, observers, and logging.
-TxtSortingLine.h: Header for the sorting line class and states.
-TxtSortingLineCalibData.cpp: Mocked calibration data loading/saving.
-TxtSortingLine.cpp: Core logic and constructor.
-TxtSortingLineRun.cpp: Finite State Machine (FSM) implementation.
-main.cpp: Entry point to drive the simulation with inputs (White/Red/Blue).
+1. SimulationMocks.h: Mocks for hardware, threading, observers, and logging.
+2. TxtSortingLine.h: Header for the sorting line class and states.
+3. TxtSortingLineCalibData.cpp: Mocked calibration data loading/saving.
+4. TxtSortingLine.cpp: Core logic and constructor.
+5. TxtSortingLineRun.cpp: Finite State Machine (FSM) implementation.
+6. main.cpp: Entry point to drive the simulation with inputs (White/Red/Blue).
 
 Run:
 ```
