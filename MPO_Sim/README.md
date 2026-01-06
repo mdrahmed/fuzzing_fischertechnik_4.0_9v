@@ -18,3 +18,15 @@ Input: white/red/blue
 g++ -std=c++11 -pthread fuzz_mpo.cpp TxtMultiProcessingStation.cpp TxtMultiProcessingStationRun.cpp TxtMultiProcessingStationCalibData.cpp -o fuzz_mpo
 ./fuzz_mpo
 ```
+
+##### Attacks Overview
+Details of all the attacks can be found following,
+```
+attack_SensorStuckHigh_Oven();      // Covers Attack 37
+attack_SensorStuckHigh_Transport(); // Covers Attack 38
+attack_Misconfigure();              // Covers Attack 39
+attack_RapidToggle();               // Covers Attack 40
+attack_PWM_Biasing();               // Covers Attacks 41, 42, 43
+attack_ActuatorSaturation();        // Covers Attack 44
+attack_PartialMasterFuzzing();      // Covers Attack 45
+```
