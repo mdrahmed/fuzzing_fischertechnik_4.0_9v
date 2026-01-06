@@ -26,9 +26,9 @@ const std::string ANSI_BLUE = "\033[34m";
 const std::string ANSI_BOLD = "\033[1m";
 
 // --- Helper for Logging ---
-void logAttack(std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
+void logAttack(std::string attacks, std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
     std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << name << " ===" << ANSI_RESET << "\n";
+    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << "(" << attacks << ")  " << name << " ===" << ANSI_RESET << "\n";
     if (isSuccessful) {
         std::cout << "  Status: " << ANSI_BLUE << ANSI_BOLD << "Successful" << ANSI_RESET << "\n";
     } else {
@@ -86,7 +86,7 @@ ft::TxtTransfer transferArea;
 FuzzableMqttClient mqttClient;
 
 // ==========================================
-// GROUP 1: Storage Logic (Attacks 1, 2)
+// GROUP 1: Storage Collision (Attack 1)
 // ==========================================
 
 void attack_StorageCollision() {
@@ -97,10 +97,14 @@ void attack_StorageCollision() {
     ft::TxtWorkpiece wpB("TAG_B", ft::WP_TYPE_RED, ft::WP_STATE_RAW);
     bool success = hbw.store(wpB); 
     
-    logAttack("High Bay-Warehouse storage (Collision)", success,
+    logAttack("Storage Collision (Attack 1)", "High Bay-Warehouse storage (Collision)", success,
               success ? "Collision: Two items stored in same slot (logic flaw)" : "Rejected",
               "store(Blue) -> store(Red) -> overwrite");
 }
+
+// ==========================================
+// GROUP 1: Storage Underflow (Attack 2)
+// ==========================================
 
 void attack_StorageUnderflow() {
     FuzzableHBW hbw(&transferArea, &mqttClient);
@@ -108,7 +112,7 @@ void attack_StorageUnderflow() {
     bool f1 = hbw.fetch(ft::WP_TYPE_BLUE);
     bool f2 = hbw.fetch(ft::WP_TYPE_BLUE);
 
-    logAttack("High Bay-Warehouse storage (Underflow)", f2,
+    logAttack("Storage Underflow (Attack 2)", "High Bay-Warehouse storage (Underflow)", f2,
               f2 ? "Underflow: Fetched from empty slot" : "Handled Gracefully",
               "fetch(Empty) -> getNextFetchPos() -> storage.fetch()");
 }
@@ -126,7 +130,7 @@ void attack_InvalidCoordinates() {
         hbw.getCR(0, 0); 
     } catch (...) { crashDetected = true; }
 
-    logAttack("High Bay-Warehouse moveCR - (Crash)", !crashDetected, 
+    logAttack("Motion Coordinates (Attack 3)", "High Bay-Warehouse moveCR - (Crash)", !crashDetected, 
               !crashDetected ? "Invalid Coordinate (65535) processed by Axis" : "Crashed",
               "corruptCalibration() -> getCR()");
 }
@@ -144,7 +148,7 @@ void attack_StateFlooding() {
     hbw.reqQuit = true;
     hbw.fsmStep();
 
-    logAttack("High Bay-Warehouse (Crash - State Flooding)", true,
+    logAttack("State Flooding (Attacks 4, 5, 6, 7)", "High Bay-Warehouse (Crash - State Flooding)", true,
               "Conflicting flags processed in single FSM cycle",
               "reqAll=true -> fsmStep() -> Undefined Precedence");
 }
@@ -164,7 +168,7 @@ void attack_JoystickMisconfig() {
     hbw.requestJoyBut(badJoy);
     hbw.moveJoystick(); 
 
-    logAttack("High Bay-Warehouse (Joystick Misconfiguration)", true,
+    logAttack("Joystick Misconfiguration (Attacks 8, 9, 10)", "High Bay-Warehouse (Joystick Misconfiguration)", true,
               "Max Int16 Input processed directly to Motors",
               "joyData=MAX -> moveJoystick() -> axis.moveRel()");
 }
@@ -179,7 +183,7 @@ void attack_AxisRace() {
     std::thread t2([&hbw]() { std::this_thread::sleep_for(std::chrono::milliseconds(5)); hbw.stop(); });
     t1.join(); t2.join();
 
-    logAttack("High Bay-Warehouse (Axis Movement Race)", true,
+    logAttack("Axis Movement Race (Attack 11)", "High Bay-Warehouse (Axis Movement Race)", true,
               "Conflicting threads (Move vs Stop) executed concurrently",
               "Thread1: moveRef() vs Thread2: stop()");
 }
@@ -203,7 +207,7 @@ void attack_MqttTimeout() {
     long duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
     bool delayed = duration >= 200; // Check if FSM was blocked
 
-    logAttack("High Bay-Warehouse (Deadlock - MQTT Timeout)", delayed,
+    logAttack("MQTT Timeout (Attacks 12, 13)", "High Bay-Warehouse (Deadlock - MQTT Timeout)", delayed,
               delayed ? "FSM Blocked by MQTT Timeout simulation" : "No Delay",
               "fsmStep() -> publishHBW_Ack() -> Blocking Wait");
     
@@ -229,7 +233,7 @@ void attack_ProcessStorageRace() {
     std::thread t2(writeTask, "TAG_1", 200); // Same UID, diff value
     t1.join(); t2.join();
 
-    logAttack("High Bay-Warehouse VGR - Storage Lost", true,
+    logAttack("Process Storage Data Loss (Attack 14)", "High Bay-Warehouse VGR - Storage Lost", true,
               "Simulated Concurrent Write to non-atomic Map",
               "Thread1: WAREHOUSING vs Thread2: SHIPPING -> Data Corruption");
 }
@@ -245,7 +249,7 @@ void attack_ConveyorJam() {
         hbw.getConv(true); 
     }
 
-    logAttack("High Bay-Warehouse (Conveyor Jam)", true,
+    logAttack("Conveyor Jam (Attacks 15, 16)", "High Bay-Warehouse (Conveyor Jam)", true,
               "Rapid motor direction switching (FWD <-> REV)",
               "putConv(Out) <-> getConv(In) loop");
 }
