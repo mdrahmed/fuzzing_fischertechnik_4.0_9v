@@ -31,3 +31,13 @@ quit
 g++ -std=c++11 -pthread fuzz_vgr.cpp TxtVacuumGripperRobot.cpp TxtVacuumGripperRobotRun.cpp TxtVacuumGripperRobotCalibData.cpp TxtVacuumGripper.cpp TxtNfcDevice.cpp -o fuzz_vgr
 ./fuzz_vgr
 ```
+
+##### ttacks Overview
+Details of all the attacks can be found following,
+```
+attack_Deadlock();          // Covers Attack 32
+attack_CalibOverflow();     // Covers Attack 33
+attack_NfcConcurrency();    // Covers Attack 34
+attack_NullPointerCrash();  // Covers Attack 35
+attack_AxisCollision();     // Covers Attack 36
+```

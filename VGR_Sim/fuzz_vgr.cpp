@@ -78,7 +78,10 @@ public:
 ft::TxtTransfer transferArea;
 ft::TxtMqttFactoryClient mqttClient;
 
-// --- Attack 1: Deadlock (Rapid State Transitions) ---
+// ==========================================
+// GROUP 1: Rapid State Transitions (Attack 32)
+// ==========================================
+
 void attack_Deadlock() {
     FuzzableVGR vgr(&transferArea, &mqttClient);
     vgr.setState(FuzzableVGR::IDLE);
@@ -94,12 +97,15 @@ void attack_Deadlock() {
     bool deadlockCondition = (vgr.getState() == FuzzableVGR::IDLE && vgr.reqNfcRead);
 
     logAttack("Vaccum Gripper-Robot - Deadlock", 
-              true, 
+              true, // Simulated success of triggering condition
               "Conflicting flags set (reqOrder + reqNfcRead) causing logic race",
               "reqOrder=true, reqNfcRead=true -> fsmStep()");
 }
 
-// --- Attack 2: Mechanical Collision (Calibration Overflow) ---
+// ==========================================
+// GROUP 2: Calibration Overflow (Attack 33)
+// ==========================================
+
 void attack_CalibOverflow() {
     FuzzableVGR vgr(&transferArea, &mqttClient);
     
@@ -123,7 +129,10 @@ void attack_CalibOverflow() {
     }
 }
 
-// --- Attack 3: Inconsistent NFC Read/Write (Concurrency) ---
+// ==========================================
+// GROUP 3: NFC Device Concurrency (Attack 34)
+// ==========================================
+
 void attack_NfcConcurrency() {
     FuzzableVGR vgr(&transferArea, &mqttClient);
     
@@ -156,7 +165,10 @@ void attack_NfcConcurrency() {
               "Thread1: reqNfcRead vs Thread2: reqNfcDelete -> LibNFC Driver Collision");
 }
 
-// --- Attack 4: VGR Crash (Null Pointer Dereference) ---
+// ==========================================
+// GROUP 4: Null Pointer Dereference (Attack 35)
+// ==========================================
+
 void attack_NullPointerCrash() {
     FuzzableVGR vgr(&transferArea, &mqttClient);
     
@@ -178,7 +190,10 @@ void attack_NullPointerCrash() {
               "setState(STORE_WP) -> reqWP_HBW=nullptr -> fsmStep() -> Dereference");
 }
 
-// --- Attack 5: Axis Collision (Position Wraparound) ---
+// ==========================================
+// GROUP 5: Axis Collision (Attack 36)
+// ==========================================
+
 void attack_AxisCollision() {
     FuzzableVGR vgr(&transferArea, &mqttClient);
     
@@ -199,11 +214,11 @@ int main() {
     std::cout << "   VGR FUZZING TESTBED (Cyberattacks)     \n";
     std::cout << "==========================================\n";
 
-    attack_Deadlock();
-    attack_CalibOverflow();
-    attack_NfcConcurrency();
-    attack_NullPointerCrash();
-    attack_AxisCollision();
+    attack_Deadlock();          // Covers Attack 32
+    attack_CalibOverflow();     // Covers Attack 33
+    attack_NfcConcurrency();    // Covers Attack 34
+    attack_NullPointerCrash();  // Covers Attack 35
+    attack_AxisCollision();     // Covers Attack 36
 
     std::cout << "\n[DONE] Fuzzing suite completed.\n";
     return 0;

@@ -16,11 +16,13 @@ void TxtVacuumGripperRobot::fsmStep()
     switch( currentState )
     {
     case INIT:
+        std::cout << "\nINIT\n";
         moveRef();
         FSM_TRANSITION( IDLE );
         break;
 
     case IDLE:
+        // std::cout << "\n--- IDLE ---\n";
         // 1. Process "Store" Command (Simulating receiving item at input)
         if (simDetectedColor != WP_TYPE_NONE && !reqOrder) {
             FSM_TRANSITION( START_DELIVERY );
@@ -33,6 +35,7 @@ void TxtVacuumGripperRobot::fsmStep()
         break;
 
     case START_DELIVERY:
+        std::cout << "\nSTART_DELIVERY\n";
         moveDeliveryInAndGrip();
         moveColorSensor();
         // Sim: Color detection result
@@ -47,12 +50,14 @@ void TxtVacuumGripperRobot::fsmStep()
         break;
 
     case STORE_WP_VGR:
+        std::cout << "\nSTORE_WP_VGR\n";
         moveToHBW();
         reqHBWfetched = true;
         FSM_TRANSITION( STORE_WP );
         break;
 
     case STORE_WP:
+        std::cout << "\nSTORE_WP\n";
         if (reqHBWfetched) {
             release(); // Place item in HBW
             moveRef();
@@ -63,12 +68,14 @@ void TxtVacuumGripperRobot::fsmStep()
         break;
 
     case FETCH_WP_VGR:
+        std::cout << "\nFETCH_WP_VGR\n";
         moveFromHBW1();
         reqHBWfetched = true;
         FSM_TRANSITION( VGR_WAIT_FETCHED );
         break;
 
     case VGR_WAIT_FETCHED:
+        std::cout << "\nVGR_WAIT_FETCHED\n";
         if (reqHBWfetched) {
             moveFromHBW2(); // Pick up from HBW
             reqHBWfetched = false;
