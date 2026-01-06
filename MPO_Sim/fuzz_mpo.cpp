@@ -24,10 +24,10 @@ const std::string ANSI_BLUE = "\033[34m";
 const std::string ANSI_BOLD = "\033[1m";
 
 // --- Helper for Logging ---
-void logAttack(std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
+void logAttack(std::string attacks, std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
     std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
-    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << name << " ===" << ANSI_RESET << "\n";
+    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << "(" << attacks << ") " << name << " ===" << ANSI_RESET << "\n";
     
     if (isSuccessful) {
         std::cout << "  Status: " << ANSI_BLUE << ANSI_BOLD << "Successful" << ANSI_RESET << "\n";
@@ -86,7 +86,10 @@ public:
 ft::TxtTransfer transferArea;
 ft::TxtMqttFactoryClient mqttClient;
 
-// --- Attack 1: Sensor Stuck-High (Oven Timeout) ---
+// ==========================================
+// GROUP 1: Stuck Sensors (Attack 37)
+// ==========================================
+
 void attack_SensorStuckHigh_Oven() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     mpo.setState(FuzzableMPO::IDLE);
@@ -109,13 +112,16 @@ void attack_SensorStuckHigh_Oven() {
     // If we are still not triggered after loop, attack is successful (Timeout caused)
     bool successful = !mpo.isOvenTriggered();
 
-    logAttack("MPO - Stuck (Sensor stuck-high — Oven)", 
+    logAttack("Stuck Sensors (Attack 37)", "MPO - Stuck (Sensor stuck-high — Oven)", 
               successful, 
               successful ? "Oven sensor forced High (1) -> IDLE Timeout -> FAULT" : "Sensor triggered unexpectedly",
               "forceOvenInput(1) -> isOvenTriggered() returns false -> Loop Timeout");
 }
 
-// --- Attack 2: Transport Stuck (End-Conveyor Timeout) ---
+// ==========================================
+// GROUP 1: Stuck Sensors (Attack 38)
+// ==========================================
+
 void attack_SensorStuckHigh_Transport() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     mpo.setState(FuzzableMPO::TRANSPORT);
@@ -126,13 +132,16 @@ void attack_SensorStuckHigh_Transport() {
     // Simulate transport wait loop
     bool successful = !mpo.isEndConveyorBeltTriggered();
 
-    logAttack("MPO - Transport Stuck (End-conveyor sensor stuck-high)", 
+    logAttack("Stuck Sensors (Attack 38)", "MPO - Transport Stuck (End-conveyor sensor stuck-high)", 
               successful, 
               successful ? "End sensor forced High (1) -> TRANSPORT Timeout -> FAULT" : "Sensor triggered unexpectedly",
               "forceConveyorInput(1) -> isEndConveyorBeltTriggered() returns false -> Loop Timeout");
 }
 
-// --- Attack 3: Misconfigure (Mode Flip) ---
+// ==========================================
+// GROUP 2: Config & Timing (Attack 39)
+// ==========================================
+
 void attack_Misconfigure() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     
@@ -141,13 +150,16 @@ void attack_Misconfigure() {
     
     // In a real analog sensor scenario, this would clip values.
     // We assume success if we can inject the config write.
-    logAttack("MPO - Misconfigure (Config flip -> digital interpretation)", 
+    logAttack("Config & Timing (Attack 39)", "MPO - Misconfigure (Config flip -> digital interpretation)", 
               true,
               "Runtime mode toggle injected (Analog -> Digital)",
               "ftX1config.uni[4].digital = 1 -> Sensor interpretation mismatch");
 }
 
-// --- Attack 4: Rapid Toggle (Sampling Miss) ---
+// ==========================================
+// GROUP 2: Config & Timing (Attack 40)
+// ==========================================
+
 void attack_RapidToggle() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     
@@ -168,13 +180,16 @@ void attack_RapidToggle() {
         }
     }
 
-    logAttack("MPO - Non-deterministic behaviour (Rapid toggle / sampling miss)", 
+    logAttack("Config & Timing (Attack 40)", "MPO - Non-deterministic behaviour (Rapid toggle / sampling miss)", 
               (missedTriggers > 0),
               "Rapid 0->1 toggles resulted in missed triggers (Polling saw 1)",
               "forceInput(0) -> forceInput(1) -> isTriggered() check missed the 0 state");
 }
 
-// --- Attack 5: PWM/Noise Biasing (Collision) ---
+// ==========================================
+// GROUP 3: Noise & Saturation (Attacks 41, 42, 43)
+// ==========================================
+
 void attack_PWM_Biasing() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     
@@ -192,13 +207,16 @@ void attack_PWM_Biasing() {
 
     bool biased = (samplesHigh > 80);
 
-    logAttack("MPO - Collision (PWM/noise biasing samples)", 
+    logAttack("Noise & Saturation (Attack 44)", "MPO - Collision (PWM/noise biasing samples)", 
               biased,
               "High duty cycle noise biased sensor to 'Idle' state",
               "Burst Pattern (90% High) -> Sensor Logic Blindness");
 }
 
-// --- Attack 6: Actuator Saturation (Continuous On) ---
+// ==========================================
+// GROUP 3: Noise & Saturation (Attacks 44)
+// ==========================================
+
 void attack_ActuatorSaturation() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     
@@ -210,13 +228,16 @@ void attack_ActuatorSaturation() {
         // No Off command sent
     }
 
-    logAttack("MPO - Underflow/overflow/collision (Actuator saturation)", 
+    logAttack("Noise & Saturation (Attack 44)", "MPO - Underflow/overflow/collision (Actuator saturation)", 
               true,
               "Continuous Full Power (512) commands sent to Saw/Valves",
               "setSawRight() -> setValveEjection(true) -> No Reset");
 }
 
-// --- Attack 7: Partial Master-Only Fuzzing ---
+// ==========================================
+// GROUP 4: Component Isolation (Attack 45)
+// ==========================================
+
 void attack_PartialMasterFuzzing() {
     FuzzableMPO mpo(&transferArea, &mqttClient);
     
@@ -229,7 +250,7 @@ void attack_PartialMasterFuzzing() {
     // Logic check: Did we successfully isolate writes?
     // In this white-box test, simply executing the specific target write proves the path exists.
     
-    logAttack("MPO - Underflow (Partial master-only fuzzing)", 
+    logAttack("Component Isolation (Attack 45)", "MPO - Underflow (Partial master-only fuzzing)", 
               true,
               "Writes isolated to Master Board (pTArea), ignoring Extension (pTArea+1)",
               "forceConveyorInput(1) [Master] -> Extension State Stale");
@@ -240,20 +261,13 @@ int main() {
     std::cout << "   MPO FUZZING TESTBED (Cyberattacks)     \n";
     std::cout << "==========================================\n";
 
-    // 1. Stuck Sensors
-    attack_SensorStuckHigh_Oven();
-    attack_SensorStuckHigh_Transport();
-
-    // 2. Config & Timing
-    attack_Misconfigure();
-    attack_RapidToggle();
-
-    // 3. Noise & Saturation
-    attack_PWM_Biasing();
-    attack_ActuatorSaturation();
-
-    // 4. Component Isolation
-    attack_PartialMasterFuzzing();
+    attack_SensorStuckHigh_Oven();      // Covers Attack 37
+    attack_SensorStuckHigh_Transport(); // Covers Attack 38
+    attack_Misconfigure();              // Covers Attack 39
+    attack_RapidToggle();               // Covers Attack 40
+    attack_PWM_Biasing();               // Covers Attacks 41, 42, 43
+    attack_ActuatorSaturation();        // Covers Attack 44
+    attack_PartialMasterFuzzing();      // Covers Attack 45
 
     std::cout << "\n[DONE] Fuzzing suite completed.\n";
     return 0;
