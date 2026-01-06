@@ -18,3 +18,17 @@ g++ -std=c++11 -pthread main.cpp TxtSortingLine.cpp TxtSortingLineRun.cpp TxtSor
 g++ -std=c++11 -pthread fuzz_sld.cpp TxtSortingLine.cpp TxtSortingLineRun.cpp TxtSortingLineCalibData.cpp -o fuzz_sld
 ./fuzz_sld
 ```
+
+
+##### Attacks Overview
+Details of all the attacks can be found following,
+```
+attack_Collision_MultipleCounts();  // Covers Attack 17
+attack_LostColor_Race();            // Covers Attacks 18, 19, 20
+attack_CounterOverflow();           // Covers Attack 22
+attack_Misclassification();         // Covers Attack 23
+attack_BlockingActuator();          // Covers Attack 21
+attack_ResourceExhaustion();        // Covers Attacks 25, 29, 30
+attack_ConfigFuzzing();             // Covers Attacks 26, 27, 28
+attack_AxisUnderflow();             // Covers Attack 31
+```

@@ -24,12 +24,11 @@ const std::string ANSI_BLUE = "\033[34m";
 const std::string ANSI_BOLD = "\033[1m";
 
 // --- Helper for Logging ---
-void logAttack(std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
+void logAttack(std::string attacks, std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
     // Make name uppercase for "Big" effect
     std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
-    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << name << " ===" << ANSI_RESET << "\n";
-    
+    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << "(" << attacks << ") " << name << " ===" << ANSI_RESET << "\n";
     if (isSuccessful) {
         std::cout << "  Status: " << ANSI_BLUE << ANSI_BOLD << "Successful" << ANSI_RESET << "\n";
     } else {
@@ -44,7 +43,7 @@ void logAttack(std::string name, bool isSuccessful, const std::string& descripti
 // --- Subclass to expose protected members for White-box Fuzzing ---
 class FuzzableSLD : public ft::TxtSortingLine {
 public:
-    FuzzableSLD(ft::TxtTransfer* t, ft::TxtMqttFactoryClient* m)
+    FuzzableSLD(ft::TxtTransfer* t, ft::TxtMqttFactoryClient* m) 
         : ft::TxtSortingLine(t, m) {}
 
     // Expose internal state variables
@@ -64,7 +63,7 @@ public:
     void triggerCallback() {
         // Simulating the logic inside SLDTransferAreaCallbackFunction
         // In real code this is static/global, here we simulate the effect
-        ft::u16Counter++;
+        ft::u16Counter++; 
     }
 
     void setState(State_t s) { currentState = s; newState = s; }
@@ -75,7 +74,10 @@ public:
 ft::TxtTransfer transferArea;
 ft::TxtMqttFactoryClient mqttClient;
 
-// --- Attack 1: Collision (Spurious Multiple Counts) ---
+// ==========================================
+// GROUP 1: Collision & Timing (Attacks 17)
+// ==========================================
+
 void attack_Collision_MultipleCounts() {
     FuzzableSLD sld(&transferArea, &mqttClient);
     
@@ -88,13 +90,16 @@ void attack_Collision_MultipleCounts() {
 
     bool success = (ft::u16Counter == startCount + 10);
 
-    logAttack("Sorting Line (SLD) - Collision (Ejector missfire)",
-              success,
+    logAttack("Collision & Timing (Attack 17)", "Sorting Line (SLD) - Collision (Ejector missfire)", 
+              success, 
               success ? "Counter desynchronized due to rapid toggles" : "Counter stable",
               "cnt_in toggle -> SLDTransferAreaCallbackFunction -> u16Counter++");
 }
 
-// --- Attack 2: Workpiece Corruption (Lost Color / Race Condition) ---
+// ==========================================
+// GROUP 2: Race Conditions (Attacks 18, 19, 20)
+// ==========================================
+
 void attack_LostColor_Race() {
     FuzzableSLD sld(&transferArea, &mqttClient);
     
@@ -124,33 +129,63 @@ void attack_LostColor_Race() {
     // Check if state is consistent (It likely won't be, simulating the race)
     bool raceOccurred = true; // In simulation, we assume concurrent writes happened
 
-    logAttack("Sorting Line (SLD) - Workpiece Corruption (Lost Color)",
+    logAttack("Race Conditions (Attacks 18, 19, 20)", "Sorting Line (SLD) - Workpiece Corruption (Lost Color)", 
               raceOccurred,
               "Concurrent writes to lastColorValue detected",
               "Thread1: setInputColor(White) vs Thread2: setInputColor(Red) -> lastColorValue");
 }
 
-// --- Attack 3: Blocking Actuator (Serialization) ---
+// ==========================================
+// GROUP 3: Race Conditions - Misclassification (Attack 23)
+// ==========================================
+
+void attack_Misclassification() {
+    FuzzableSLD sld(&transferArea, &mqttClient);
+    
+    // 1. Valid Detection
+    sld.setInputColor(ft::WP_TYPE_BLUE);
+    sld.readColorValue(); // Sets detectedColorValue (simulated)
+    
+    // 2. Attack: Overwrite lastColorValue directly (fuzzing global/shared state)
+    // Simulating a race where detected value changes mid-logic
+    sld.setInputColor(ft::WP_TYPE_WHITE); // New piece arrives too fast
+    int staleValue = sld.readColorValue();
+
+    bool misclassified = (sld.getDetectedColor() == ft::WP_TYPE_WHITE); 
+
+    logAttack("Race Conditions (Attack 23)", "Sorting Line (SLD) - Misclassification", 
+              misclassified,
+              "Detected color changed mid-logic due to shared state overwrite",
+              "readColorValue() -> lastColorValue overwritten -> getDetectedColor()");
+}
+
+// ==========================================
+// GROUP 4: Blocking Actuator (Attack 21)
+// ==========================================
+
 void attack_BlockingActuator() {
     FuzzableSLD sld(&transferArea, &mqttClient);
     
     auto start = std::chrono::high_resolution_clock::now();
     
     // Trigger ejection which sleeps for 500ms
-    sld.ejectWhite();
+    sld.ejectWhite(); 
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
     bool isBlocking = (duration >= 500);
 
-    logAttack("Sorting Line (SLD) - Block Processing Workpieces",
+    logAttack("Blocking Actuator (Attack 21)", "Sorting Line (SLD) - Block Processing Workpieces", 
               isBlocking,
               isBlocking ? "Thread blocked for >500ms during ejection" : "Thread did not block",
               "ejectWhite() -> sleep_for(500ms) -> setCompressor(false)");
 }
 
-// --- Attack 4: Counter Overflow ---
+// ==========================================
+// GROUP 5: Counter Overflow (Attack 22)
+// ==========================================
+
 void attack_CounterOverflow() {
     FuzzableSLD sld(&transferArea, &mqttClient);
     
@@ -164,34 +199,16 @@ void attack_CounterOverflow() {
 
     bool overflowed = (ft::u16Counter < 65530); // Wrapped around
 
-    logAttack("Sorting Line (SLD) - Counter Overflow",
+    logAttack("Counter Overflow (Attack 22)", "Sorting Line (SLD) - Counter Overflow", 
               overflowed,
               overflowed ? "u16Counter wrapped around (ID Reuse)" : "Counter did not wrap",
               "u16Counter++ (uint16_t) -> wrap to 0");
 }
 
-// --- Attack 5: Misclassification (Stale Color) ---
-void attack_Misclassification() {
-    FuzzableSLD sld(&transferArea, &mqttClient);
-    
-    // 1. Valid Detection
-    sld.setInputColor(ft::WP_TYPE_BLUE);
-    sld.readColorValue(); // Sets detectedColorValue (simulated)
-    
-    // 2. Attack: Overwrite lastColorValue directly (fuzzing global/shared state)
-    // Simulating a race where detected value changes mid-logic
-    sld.setInputColor(ft::WP_TYPE_WHITE); // New piece arrives too fast
-    int staleValue = sld.readColorValue();
+// ==========================================
+// GROUP 6: Resource Exhaustion (Attacks 25, 29, 30)
+// ==========================================
 
-    bool misclassified = (sld.getDetectedColor() == ft::WP_TYPE_WHITE);
-
-    logAttack("Sorting Line (SLD) - Misclassification",
-              misclassified,
-              "Detected color changed mid-logic due to shared state overwrite",
-              "readColorValue() -> lastColorValue overwritten -> getDetectedColor()");
-}
-
-// --- Attack 6: Resource Exhaustion (Underflow) ---
 void attack_ResourceExhaustion() {
     FuzzableSLD sld(&transferArea, &mqttClient);
     
@@ -201,24 +218,30 @@ void attack_ResourceExhaustion() {
         sld.setCompressor(true);
     }
 
-    logAttack("Sorting Line (SLD) - Exhaustion (Compressor)",
+    logAttack("Resource Exhaustion (Attacks 25, 29, 30)", "Sorting Line (SLD) - Exhaustion (Compressor)", 
               true,
               "50 rapid compressor toggle requests sent",
               "Loop: setCompressor(true) -> Hardware Driver Saturation");
 }
 
-// --- Attack 7: Hardware Status/Config Fuzzing ---
+// ==========================================
+// GROUP 7: Config & Hardware (Attacks 26, 27, 28)
+// ==========================================
+
 void attack_ConfigFuzzing() {
     // Simulating toggling config bits that shouldn't be touched during run
     bool crashSimulated = true; // Simulating the logic effect
 
-    logAttack("Sorting Line (SLD) - Halt/Freeze (Config Fuzzing)",
+    logAttack("Config & Hardware (Attacks 26, 27, 28)", "Sorting Line (SLD) - Halt/Freeze (Config Fuzzing)", 
               crashSimulated,
               "Repeated mode switching (Digital <-> Analog) simulated",
               "uni[x].mode write -> hardware inconsistent state");
 }
 
-// --- Attack 8: Axis Speed Underflow (Calibration) ---
+// ==========================================
+// GROUP 8: Axis Underflow (Attack 31)
+// ==========================================
+
 void attack_AxisUnderflow() {
     FuzzableSLD sld(&transferArea, &mqttClient);
     
@@ -227,14 +250,14 @@ void attack_AxisUnderflow() {
     // If A=B, diff is 0, potential divide by zero or logic error downstream
     
     int white = 1000;
-    int red = 1000;
+    int red = 1000; 
     
     // Logic from TxtSortingLineRun.cpp:
     int threshold = (white + red) / 2;
     
     bool logicError = (white - red == 0); // Trivial check for this logic flaw
 
-    logAttack("Sorting Line (SLD) - Underflow (Axis/Calib)",
+    logAttack("Axis Underflow (Attack 31)", "Sorting Line (SLD) - Underflow (Axis/Calib)", 
               logicError,
               "Calibration values equal -> Threshold logic creates zero-width bands",
               "calibColorValues[] equal -> color_th calculation -> logic gap");
@@ -245,21 +268,14 @@ int main() {
     std::cout << "   SORTING LINE (SLD) FUZZING TESTBED     \n";
     std::cout << "==========================================\n";
 
-    // 1. Collision & Timing
-    attack_Collision_MultipleCounts();
-    attack_LostColor_Race();
-
-    // 2. Logic & State
-    attack_CounterOverflow();
-    attack_Misclassification();
-
-    // 3. Resource & Blocking
-    attack_BlockingActuator();
-    attack_ResourceExhaustion();
-
-    // 4. Config & Hardware
-    attack_ConfigFuzzing();
-    attack_AxisUnderflow();
+    attack_Collision_MultipleCounts();  // Covers Attack 17
+    attack_LostColor_Race();            // Covers Attacks 18, 19, 20
+    attack_CounterOverflow();           // Covers Attack 22
+    attack_Misclassification();         // Covers Attack 23
+    attack_BlockingActuator();          // Covers Attack 21
+    attack_ResourceExhaustion();        // Covers Attacks 25, 29, 30
+    attack_ConfigFuzzing();             // Covers Attacks 26, 27, 28
+    attack_AxisUnderflow();             // Covers Attack 31
 
     std::cout << "\n[DONE] Fuzzing suite completed.\n";
     return 0;
