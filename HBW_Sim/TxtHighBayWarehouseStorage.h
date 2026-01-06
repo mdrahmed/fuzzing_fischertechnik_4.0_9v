@@ -29,7 +29,7 @@ public:
     bool isValidPos(StoragePos2 p);
     bool canColorBeStored(TxtWPType_t c);
     Stock_map_t getStockMap();
-    void print(); // Made public to call from main
+    void print(); 
 
 protected:
     std::string filename;

@@ -16,6 +16,7 @@
 #define SPDLOG_LOGGER_DEBUG(logger, fmt, ...) printf("[DEBUG] " fmt "\n", ##__VA_ARGS__)
 #define TIMEOUT_MS_PUBLISH 100
 
+// --- Mock Enums & Constants ---
 namespace ft {
     enum TxtWPType_t { WP_TYPE_NONE=0, WP_TYPE_WHITE, WP_TYPE_RED, WP_TYPE_BLUE };
     enum TxtWPState_t { WP_STATE_RAW=0, WP_STATE_PROCESSED, WP_STATE_REJECTED };
@@ -87,8 +88,6 @@ namespace ft {
         virtual bool load() { return true; }
         virtual bool saveDefault() { return true; }
         virtual bool save() { return true; }
-        bool valid = false;
-        std::string filename = "";
     };
 
     // --- Axis Mocks ---
@@ -103,7 +102,7 @@ namespace ft {
         int getPosAbs() { return pos; }
         bool moveAbs(int target) { 
             std::cout << "[" << name << "] Moving to " << target << "...\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
+            std::this_thread::sleep_for(std::chrono::milliseconds(20)); 
             pos = target; 
             return true; 
         }
@@ -132,8 +131,8 @@ namespace ft {
     // --- Sound Mock ---
     struct Sound {
         void error() { std::cout << "[Sound] *BEEP* Error\n"; }
-        void info1() { std::cout << "[Sound] *BEEP* Info1\n"; }
-        void info2() { std::cout << "[Sound] *BEEP* Info2\n"; }
+        void info1() { std::cout << "[Sound] Info1\n"; }
+        void info2() { std::cout << "[Sound] Info2\n"; }
     };
     static Sound sound;
 }

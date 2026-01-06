@@ -5,7 +5,7 @@ namespace ft {
 TxtHighBayWarehouseStorage::TxtHighBayWarehouseStorage() 
     : filename("Data/Config.HBW.Storage.json")
 {
-    resetStorageState(); // Init clean for sim
+    resetStorageState(); 
     currentPos = {-1, -1};
     nextFetchPos = {-1, -1};
 }
@@ -43,10 +43,9 @@ bool TxtHighBayWarehouseStorage::storeContainer() {
 bool TxtHighBayWarehouseStorage::store(TxtWorkpiece _wp) {
     SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "store type:%d", _wp.type);
     
-    // Fix: Reset the position before searching so we don't overwrite the previous slot
     nextFetchPos = {-1, -1}; 
 
-    // Logic: Find first empty spot if not set by logic
+    // Logic: Find first empty spot (fill bottom-up, left-to-right)
     if (nextFetchPos.x == -1) {
          for(int i=0; i<3; i++) {
             for(int j=0; j<3; j++) {
@@ -71,8 +70,14 @@ bool TxtHighBayWarehouseStorage::store(TxtWorkpiece _wp) {
 bool TxtHighBayWarehouseStorage::fetch(TxtWPType_t t) {
     SPDLOG_LOGGER_DEBUG(spdlog::get("console"), "fetch type:%d", t);
     nextFetchPos = {-1, -1};
+
+    // FIX: Changed search order for Fetch.
+    // Previously: for(int j=2; j>=0; j--) (Top-down)
+    // New:        for(int j=0; j<3; j++)  (Bottom-up)
+    // This ensures items stored earlier (lower indices) are fetched first,
+    // matching the FIFO-like behavior requested in the example.
     for(int i=0; i<3; i++) {
-        for(int j=2; j>=0; j--) {
+        for(int j=0; j<3; j++) { // Changed loop direction here
             if (wp[i][j] && wp[i][j]->type == t) {
                 nextFetchPos = {i, j};
                 goto found_fetch;
@@ -91,7 +96,6 @@ bool TxtHighBayWarehouseStorage::fetch(TxtWPType_t t) {
 }
 
 bool TxtHighBayWarehouseStorage::fetchContainer() {
-    // Find slot to put empty container? Simplified logic for sim.
     for(int i=0; i<3; i++) {
         for(int j=2; j>=0; j--) {
             if (wp[i][j] == nullptr) {
@@ -125,7 +129,7 @@ char TxtHighBayWarehouseStorage::charType(int x, int y) {
 
 void TxtHighBayWarehouseStorage::print() {
     std::cout << "\n--- Storage ---\n";
-    // Print row by row (y=2 down to 0)
+    // Print row by row (y=2 down to 0) for display
     for(int y=2; y>=0; y--) {
         for(int x=0; x<3; x++) {
             std::cout << charType(x, y) << " ";

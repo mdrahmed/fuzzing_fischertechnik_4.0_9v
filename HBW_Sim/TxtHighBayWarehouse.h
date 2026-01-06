@@ -4,7 +4,6 @@
 #include "SimulationMocks.h"
 #include "TxtHighBayWarehouseStorage.h"
 
-// FSM Macros
 #define FSM_DECLARE_STATE_XE( stateName, attr... ) stateName
 
 namespace ft {
@@ -60,7 +59,6 @@ public:
     void requestVGRcalib() { reqVGRcalib= true; }
     void requestVGRresetStorage() { reqVGRresetStorage= true; }
     
-    // --- FIX: Added method declarations ---
     void requestJoyBut(TxtJoysticksData jd);
     void printStorage() { storage.print(); }
 

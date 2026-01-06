@@ -32,11 +32,13 @@ const char* TxtHighBayWarehouse::toString(State_t state) {
         case FETCH_WP: return "FETCH_WP";
         case FETCH_WP_WAIT: return "FETCH_WP_WAIT";
         case STORE_CONTAINER: return "STORE_CONTAINER";
+        case CALIB_HBW: return "CALIB_HBW";
+        case CALIB_HBW_NAV: return "CALIB_HBW_NAV";
+        case CALIB_HBW_MOVE: return "CALIB_HBW_MOVE";
         default: return "UNKNOWN";
     }
 }
 
-// --- FIX: Implement requestJoyBut here ---
 void TxtHighBayWarehouse::requestJoyBut(TxtJoysticksData jd) {
     joyData = jd;
     reqJoyData = true;
@@ -58,7 +60,6 @@ void TxtHighBayWarehouse::moveRef() {
 
 void TxtHighBayWarehouse::moveJoystick() {
     if(reqJoyData) {
-        // Mock move
         std::cout << "[HBW] Joystick Move: " << joyData.aX1 << "\n";
         reqJoyData = false;
     }
@@ -153,6 +154,11 @@ bool TxtHighBayWarehouse::fetch(TxtWPType_t t) {
 bool TxtHighBayWarehouse::fetchContainer() { return true; }
 bool TxtHighBayWarehouse::canColorBeStored(TxtWPType_t c) { return storage.canColorBeStored(c); }
 void TxtHighBayWarehouse::setSpeed(int16_t s) { axisX.setSpeed(s); axisY.setSpeed(s); axisZ.setSpeed(s); }
-void TxtHighBayWarehouse::moveCalibPos() {}
+
+void TxtHighBayWarehouse::moveCalibPos() {
+    // Simulating calibration move
+    std::cout << "[HBW] Moving to Calib Pos: " << (int)calibPos << "\n";
+    moveRef();
+}
 
 }
