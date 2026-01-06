@@ -23,10 +23,10 @@ const std::string ANSI_BLUE = "\033[34m";
 const std::string ANSI_BOLD = "\033[1m";
 
 // --- Helper for Logging ---
-void logAttack(std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
+void logAttack(std::string attacks, std::string name, bool isSuccessful, const std::string& description, const std::string& path) {
     std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
-    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << name << " ===" << ANSI_RESET << "\n";
+    std::cout << "\n" << ANSI_GREEN << ANSI_BOLD << "=== [ATTACK] " << "(" << attacks << ")  " << name << " ===" << ANSI_RESET << "\n";
     
     if (isSuccessful) {
         std::cout << "  Status: " << ANSI_BLUE << ANSI_BOLD << "Successful" << ANSI_RESET << "\n";
@@ -96,7 +96,7 @@ void attack_Deadlock() {
     // If reqNfcRead logic executes before reqOrder is fully processed/cleared in a real thread, deadlock occurs.
     bool deadlockCondition = (vgr.getState() == FuzzableVGR::IDLE && vgr.reqNfcRead);
 
-    logAttack("Vaccum Gripper-Robot - Deadlock", 
+    logAttack("Rapid State Transitions (Attack 32)", "Vaccum Gripper-Robot - Deadlock", 
               true, // Simulated success of triggering condition
               "Conflicting flags set (reqOrder + reqNfcRead) causing logic race",
               "reqOrder=true, reqNfcRead=true -> fsmStep()");
@@ -119,12 +119,12 @@ void attack_CalibOverflow() {
     // Trigger move via wrapper
     try {
         vgr.triggerMoveCalibPos(); // Will try to look up invalid key
-        logAttack("Vaccum Gripper-Robot - Mechanical Collision", 
+        logAttack("Calibration Overflow (Attack 33)", "Vaccum Gripper-Robot - Mechanical Collision", 
                   true,
                   "Moved to (0,0,0) due to map access with invalid enum key",
                   "calibPos=VGRCALIB_END -> moveCalibPos() -> map_pos3[] -> Default(0,0,0)");
     } catch (...) {
-        logAttack("Vaccum Gripper-Robot - Mechanical Collision", 
+        logAttack("Calibration Overflow (Attack 33)", "Vaccum Gripper-Robot - Mechanical Collision", 
                   false, "System crashed gracefully (Exception)", "moveCalibPos()");
     }
 }
@@ -159,7 +159,7 @@ void attack_NfcConcurrency() {
     t1.join();
     t2.join();
 
-    logAttack("Vaccum Gripper-Robot - Inconsistent NFC", 
+    logAttack("NFC Device Concurrency (Attack 34)", "Vaccum Gripper-Robot - Inconsistent NFC", 
               true,
               "Concurrent Read/Delete requests flooded hardware driver",
               "Thread1: reqNfcRead vs Thread2: reqNfcDelete -> LibNFC Driver Collision");
@@ -184,7 +184,7 @@ void attack_NullPointerCrash() {
         crashDetected = true;
     }
 
-    logAttack("Vaccum Gripper-Robot - VGR Crash", 
+    logAttack("Null Pointer Dereference (Attack 35)", "Vaccum Gripper-Robot - VGR Crash", 
               true, 
               "Forced state STORE_WP with nullptr workpiece -> SIGSEGV",
               "setState(STORE_WP) -> reqWP_HBW=nullptr -> fsmStep() -> Dereference");
@@ -203,7 +203,7 @@ void attack_AxisCollision() {
     // Trigger movement to compromised position
     vgr.move("HBW1"); 
 
-    logAttack("Vaccum Gripper-Robot & High Bay-Warehouse - Axis Collision", 
+    logAttack("Axis Collision (Attack 36)", "Vaccum Gripper-Robot & High Bay-Warehouse - Axis Collision", 
               true,
               "Movement command issued with out-of-bound coordinates (1600, 1200)",
               "calibData corrupted -> move(HBW1) -> axisX.moveAbs(1600)");
